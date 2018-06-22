@@ -22,17 +22,13 @@ import math
 import time
 
 
-# input: file name
+# input: filename
 # output: object with vertex keys and their neighbors
 def preprocess_adj_list(filename):
-    f = open(filename, 'r')
-    vStrs = f.read().splitlines()
-    f.close()
-
     result = []
-    for i, val in enumerate(vStrs):
-        result.append(val.split())
-
+    with open(filename) as f_handle:
+        for line in f_handle:
+            result.append(line.split())
     return graph_obj(result)
 
 
@@ -48,23 +44,23 @@ def graph_obj(arr_vertices):
 # input: object with vertex keys and their neighbors
 # output: Graph instantiated with input graph object
 def create_graph(graph_obj):
-    graph = Graph()
+    G = Graph()
     for v_key in graph_obj:
         v = Vertex(v_key)
         for nbr_key in graph_obj[v_key]:
             v.add_nbr(nbr_key)
-        graph.add_v(v)
-    return graph
+        G.add_v(v)
+    return G
 
 
-# Vertex class (object with 'key' and 'neighbors' keys)
-class Vertex(object):
+# Vertex class
+class Vertex():
     def __init__(self, key):
         self.key = key
         self.nbrs = {}
 
     def __str__(self):
-        return '{' + "'key': '{}', 'neighbors': {}".format(
+        return '{' + "'key': {}, 'nbrs': {}".format(
             self.key,
             self.nbrs
         ) + '}'
@@ -91,7 +87,7 @@ class Vertex(object):
 # Graph class
 # Note: to maximize applications, add_edge, increase_edge, and remove_edge only add or remove an
 # edge for the 'from' vertex, and has_edge only checks the 'from' vertex.
-class Graph(object):
+class Graph():
     def __init__(self):
         self.vertices = {}
 
@@ -107,10 +103,10 @@ class Graph(object):
         output = '\n{\n'
         vertices = self.vertices.values()
         for v in vertices:
-            graph_key = "'{}'".format(v.key)
-            v_str = "\n   'key': '{}', \n   'neighbors': {}".format(
+            graph_key = "{}".format(v.key)
+            v_str = "\n   'key': {}, \n   'nbrs': {}".format(
                 v.key,
-                v.neighbors
+                v.nbrs
             )
             output += ' ' + graph_key + ': {' + v_str + '\n },\n'
         return output + '}'
@@ -155,10 +151,10 @@ class Graph(object):
         if to_key not in self.vertices:
             self.add_v(Vertex(to_key))
 
-        weight_v1_v2 = self.get_v(from_key).get_weight(to_key)
-        new_weight_v1_v2 = weight_v1_v2 + weight if weight_v1_v2 else weight
+        weight_u_v = self.get_v(from_key).get_weight(to_key)
+        new_weight_u_v = weight_u_v + weight if weight_u_v else weight
 
-        self.vertices[from_key].add_nbr(to_key, new_weight_v1_v2)
+        self.vertices[from_key].add_nbr(to_key, new_weight_u_v)
         # temporary logic
         return self
 
@@ -188,15 +184,15 @@ def compile_edges(graph):
 
 
 # input: Graph object, array of all its edges
-# output: a random edge [v1,v2] that still exists in the graph
+# output: a random edge [u,v] that still exists in the graph
 def choose_edge(graph, edges):
     random_edge = random.choice(edges)
-    v1_key = random_edge[0]
-    v2_key = random_edge[1]
-    while(not graph.has_edge(v1_key, v2_key)):
+    u_key = random_edge[0]
+    v_key = random_edge[1]
+    while(not graph.has_edge(u_key, v_key)):
         random_edge = random.choice(edges)
-        v1_key = random_edge[0]
-        v2_key = random_edge[1]
+        u_key = random_edge[0]
+        v_key = random_edge[1]
     return random_edge
 
 
@@ -241,8 +237,8 @@ def record_min_cut(graph_object):
     # iters = int(num_vertices**2 * math.log(num_vertices))
     iters = 1000
     for i in range(iters):
-        graph = create_graph(graph_object)
-        min_cut = random_contraction(graph)
+        G = create_graph(graph_object)
+        min_cut = random_contraction(G)
         print('min_cut:', min_cut)
         if min_cut < best_min_cut:
             best_min_cut = min_cut
@@ -252,43 +248,43 @@ def record_min_cut(graph_object):
 
 # input: Graph object
 # output: minimum cut of graph
-def random_contraction(graph):
-    edges = compile_edges(graph)
-    while len(graph.get_v_keys()) > 2:
-        random_edge = choose_edge(graph, edges)
-        v1_key = random_edge[0]
-        v2_key = random_edge[1]
-        v1 = graph.get_v(v1_key)
-        v2 = graph.get_v(v2_key)
+def random_contraction(G):
+    edges = compile_edges(G)
+    while len(G.get_v_keys()) > 2:
+        random_edge = choose_edge(G, edges)
+        u_key = random_edge[0]
+        v_key = random_edge[1]
+        u = G.get_v(u_key)
+        v = G.get_v(v_key)
 
-        # Merge or contract v1 and v2 into a single vertex v1 (3 steps)
-        # To prepare to delete v2:
-        # 1) for each v2_nbr, a) add it to the neighbors of v1, and b) add v1 to its neighbors
-        v2_nbr_keys = v2.get_nbr_keys()
-        for v2_nbr_key in v2_nbr_keys:
-            # a) add v2_nbr to neighbors of v1, with an edge weight = [v2,v2_nbr] edge weight
-            # (Note: self-loop created here when we eventually add v1 (also a v2_nbr) as a
+        # Merge or contract u and v into a single vertex u (3 steps)
+        # To prepare to delete v:
+        # 1) for each v_nbr, a) add it to the neighbors of u, and b) add u to its neighbors
+        v_nbr_keys = v.get_nbr_keys()
+        for v_nbr_key in v_nbr_keys:
+            # a) add v_nbr to neighbors of u, with an edge weight = [v,v_nbr] edge weight
+            # (Note: self-loop created here when we eventually add u (also a v_nbr) as a
             # neighbor to itself, but it is removed in step 3)
-            weight_v2_v2_nbr = v2.get_weight(v2_nbr_key)
-            graph.increase_edge(v1_key, v2_nbr_key, weight_v2_v2_nbr)
-            # b) add v1 to neighbors of v2_nbr, with a [v2_nbr,v1] edge weight = same
-            # [v1,v2_nbr] edge weight just added
-            graph.increase_edge(v2_nbr_key, v1_key, weight_v2_v2_nbr)
+            weight_v_v_nbr = v.get_weight(v_nbr_key)
+            G.increase_edge(u_key, v_nbr_key, weight_v_v_nbr)
+            # b) add u to neighbors of v_nbr, with a [v_nbr,u] edge weight = same
+            # [u,v_nbr] edge weight just added
+            G.increase_edge(v_nbr_key, u_key, weight_v_v_nbr)
             # append the new edges formed to list of edges
-            edges.append([v1_key, v2_nbr_key])
-            edges.append([v2_nbr_key, v1_key])
-            graph.add_v(graph.get_v(v2_nbr_key))
+            edges.append([u_key, v_nbr_key])
+            edges.append([v_nbr_key, u_key])
+            G.add_v(G.get_v(v_nbr_key))
 
-        graph.add_v(v1)
-        # 2) remove v2 from graph, which removes it as anyones neighbor and deletes it
-        # (remove from edges the edges v2 shared with neighbors and vice-versa)
-        graph.remove_v(v2_key)
-        edges = remove_v_from_edges(edges, v2_key)
-        # 3) remove self-loop added in step 1a. v1 should not have itself listed in its neighbors
-        graph.remove_edge(v1_key, v1_key)
+        G.add_v(u)
+        # 2) remove v from G, which removes it as anyones neighbor and deletes it
+        # (remove from edges the edges v shared with neighbors and vice-versa)
+        G.remove_v(v_key)
+        edges = remove_v_from_edges(edges, v_key)
+        # 3) remove self-loop added in step 1a. u should not have itself listed in its neighbors
+        G.remove_edge(u_key, u_key)
 
     # return edges between final 2 vertices (will be equal for each vertex)
-    return count_edges(graph)
+    return count_edges(G)
 
 
 # graph_object = {
